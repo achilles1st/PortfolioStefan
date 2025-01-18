@@ -38,7 +38,7 @@
 .u-section-1 .u-image-2 {
   width: 300px;
   height: 300px;
-  transform-origin: center center 0px;
+  transform-origin: center center;
   transform: scaleX(-1);
   margin: 78px auto 60px;
 }
