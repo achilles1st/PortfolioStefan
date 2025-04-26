@@ -25,35 +25,21 @@
   margin: 46px 304px 0 293px;
 }
 
-.u-section-1 .u-image-2 {
-  width: 300px;
-  height: 300px;
-  margin: -222px auto 0 0;
-}
-
 .u-section-1 .u-btn-1 {
   background-image: none;
   border-style: solid;
   text-transform: uppercase;
   font-weight: 700;
   letter-spacing: 2px;
-  margin: -39px auto 0;
+  margin: 39px auto 0;
   padding: 0;
-}
-
-.u-section-1 .u-image-3 {
-  width: 300px;
-  height: 300px;
-  transform-origin: center center;
-  transform: scaleX(-1);
-  margin: -286px 0 0 auto;
 }
 
 .u-section-1 .u-group-1 {
   min-height: 768px;
   height: auto;
   width: 751px;
-  margin: 55px 189px 46px auto;
+  margin: 69px 189px 46px auto;
 }
 
 .u-section-1 .u-container-layout-1 {
@@ -64,19 +50,6 @@
   .u-section-1 .u-text-2 {
     margin-right: 204px;
     margin-left: 193px;
-  }
-
-  .u-section-1 .u-image-2 {
-    margin-top: -223px;
-    margin-left: -50px;
-  }
-
-  .u-section-1 .u-btn-1 {
-    margin-top: -38px;
-  }
-
-  .u-section-1 .u-image-3 {
-    margin-right: -50px;
   }
 
   .u-section-1 .u-group-1 {
@@ -92,27 +65,8 @@
     margin-left: 83px;
   }
 
-  .u-section-1 .u-image-2 {
-    width: 227px;
-    height: 227px;
-    margin-top: -196px;
-    margin-left: -85px;
-  }
-
-  .u-section-1 .u-btn-1 {
-    margin-top: 8px;
-  }
-
-  .u-section-1 .u-image-3 {
-    width: 227px;
-    height: 227px;
-    margin-top: -259px;
-    margin-right: -70px;
-  }
-
   .u-section-1 .u-group-1 {
     width: 720px;
-    margin-top: 101px;
   }
 }
 
@@ -138,20 +92,13 @@
     margin-right: 0;
   }
 
-  .u-section-1 .u-image-2 {
-    margin-top: -325px;
-  }
-
   .u-section-1 .u-btn-1 {
-    margin-top: 64px;
-  }
-
-  .u-section-1 .u-image-3 {
-    margin-top: -286px;
+    margin-top: -34px;
   }
 
   .u-section-1 .u-group-1 {
     width: 540px;
+    margin-top: 42px;
   }
 
   .u-section-1 .u-container-layout-1 {
@@ -175,27 +122,9 @@
     width: 340px;
   }
 
-  .u-section-1 .u-image-2 {
-    width: 109px;
-    height: 109px;
-    margin-top: -196px;
-    margin-left: -35px;
-  }
-
-  .u-section-1 .u-btn-1 {
-    margin-top: 53px;
-  }
-
-  .u-section-1 .u-image-3 {
-    width: 106px;
-    height: 106px;
-    margin-top: -183px;
-    margin-right: -39px;
-  }
-
   .u-section-1 .u-group-1 {
     width: 340px;
-    margin-top: 82px;
+    margin-top: 5px;
     margin-bottom: 60px;
   }
 }.u-section-2 .u-sheet-1 {
@@ -1654,7 +1583,6 @@
   }
 } .u-section-3 {
   background-image: url("images/mountain_cop.jpg");
-  background-position: 50% 50%;
 }
 
 .u-section-3 .u-sheet-1 {
