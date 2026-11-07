@@ -21,9 +21,11 @@
     const r = cv.getBoundingClientRect();
     const w = Math.max(1, Math.round(r.width));
     const h = Math.max(1, Math.round(r.height));
-    if (cv.width !== w * dpr || cv.height !== h * dpr) { cv.width = w * dpr; cv.height = h * dpr; }
+    const bw = Math.round(w * dpr), bh = Math.round(h * dpr);
+    if (cv.width !== bw || cv.height !== bh) { cv.width = bw; cv.height = bh; } // resizing clears the canvas
+    const dprX = bw / w, dprY = bh / h;
     const ctx = cv.getContext('2d');
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.setTransform(dprX, 0, 0, dprY, 0, 0);
     return { ctx, w, h };
   }
 
@@ -42,6 +44,15 @@
     document.addEventListener('visibilitychange', () => (document.hidden ? stop() : start()));
   }
 
+  /* One rAF-batched scroll/resize listener for everything that follows the scroll position. */
+  const scrollTasks = [];
+  let scrollQueued = false;
+  const runScrollTasks = () => { scrollQueued = false; scrollTasks.forEach((f) => f()); };
+  const queueScrollTasks = () => { if (!scrollQueued) { scrollQueued = true; requestAnimationFrame(runScrollTasks); } };
+  addEventListener('scroll', queueScrollTasks, { passive: true });
+  addEventListener('resize', queueScrollTasks);
+  function onScrollFrame(fn) { scrollTasks.push(fn); fn(); }
+
   let toastTimer;
   function toast(msg) {
     const t = $('#toast');
@@ -57,6 +68,8 @@
   }
 
   /* ═════════════════════════ HERO MONITOR ═════════════════════════ */
+  // Drawn like a real bedside monitor: each frame only clears and re-strokes the few new columns
+  // behind the sweep head instead of repainting the whole canvas.
   function initMonitor() {
     const host = $('#monitor');
     const cv = $('#monitor-canvas');
@@ -64,25 +77,38 @@
     const spo2El = $('#hud-spo2'), eegEl = $('#hud-eeg'), eegTxt = $('#hud-eeg-txt');
     const SPEED = 150; // sweep speed in px/s
     const GAP = 24;    // erased gap in front of the sweep head
+    const BACK = 4;    // columns re-stroked behind the new ones so the joins stay seamless
     const chans = [
       { label: 'II', color: C.green, lo: -0.4, hi: 1.12, glow: true },
       { label: 'PLETH', color: C.cyan, lo: -0.1, hi: 1.15 },
       { label: 'EEG', color: C.amber, lo: -1.2, hi: 1.2 },
     ];
-    let ctx, W = 0, H = 0, traceW = 0, bufs = [], head = 0, carry = 0, bands = [];
+    chans.forEach((c) => {
+      c.el = document.createElement('span');
+      c.el.className = 'monitor-label';
+      c.el.textContent = c.label;
+      c.el.style.color = c.color;
+      host.appendChild(c.el);
+    });
+    const dot = document.createElement('span');
+    dot.className = 'monitor-dot';
+    host.appendChild(dot);
+
+    let ctx, W = 0, H = 0, traceW = 0, bufs = [], head = 0, carry = 0;
     let t = 0, beatT = 0, rr = 60 / 64, prevRR = 60 / 64, hr = 64, arousal = 0, rFired = false, skip = false, eegNoise = 0;
     let live = false; // false while pre-filling the screen
 
     const g = (x, a, mu, s) => a * Math.exp(-((x - mu) ** 2) / (2 * s * s));
     const ecgAt = (x, RR) => g(x, 0.11, 0.1, 0.022) + g(x, -0.12, 0.205, 0.008) + g(x, 1, 0.225, 0.009) + g(x, -0.26, 0.245, 0.01) + g(x, 0.28, 0.24 + 0.22 * Math.sqrt(RR), 0.045);
     const plethAt = (x) => (x < 0 ? 0 : g(x, 1, 0.36, 0.07) + g(x, 0.38, 0.6, 0.08));
+    const pop = (el, s) => el.animate([{ transform: `scale(${s})` }, { transform: 'scale(1)' }], { duration: 400, easing: 'ease-out' });
 
     function onR() {
       if (!live) return;
       vitals.hr = Math.round(hr);
       hrEl.textContent = vitals.hr;
-      heart.classList.remove('beat'); void heart.offsetWidth; heart.classList.add('beat');
-      pulse.classList.remove('beat'); void pulse.offsetWidth; pulse.classList.add('beat');
+      pop(heart, 1.6);
+      pop(pulse, 1.8);
     }
 
     function step(dt) {
@@ -110,68 +136,94 @@
       head = (head + 1) % traceW;
     }
 
+    const yOf = (c, v) => c.bot - (v - c.lo) * c.k;
+
+    function stroke(a, b) { // columns a..b, no wrap
+      for (let i = 0; i < chans.length; i++) {
+        const c = chans[i], buf = bufs[i];
+        ctx.beginPath();
+        ctx.moveTo(a, yOf(c, buf[a]));
+        for (let x = a + 1; x <= b; x++) ctx.lineTo(x, yOf(c, buf[x]));
+        ctx.strokeStyle = c.color;
+        if (c.glow) { ctx.globalAlpha = 0.16; ctx.lineWidth = 6; ctx.stroke(); ctx.globalAlpha = 1; }
+        ctx.lineWidth = c.glow ? 1.8 : 1.3;
+        ctx.stroke();
+      }
+    }
+
+    // fn(a, b) over the ring positions start … start+len-1, split where the buffer wraps
+    function ring(start, len, fn) {
+      const a = ((start % traceW) + traceW) % traceW, b = a + len - 1;
+      if (b < traceW) fn(a, b);
+      else { fn(a, traceW - 1); fn(0, b - traceW); }
+    }
+
+    function repaint(a, b) {
+      ctx.save();
+      ctx.beginPath(); ctx.rect(a, 0, b - a + 1, H); ctx.clip();
+      ctx.clearRect(a, 0, b - a + 1, H);
+      stroke(Math.max(0, a - BACK), b);
+      ctx.restore();
+    }
+    const erase = (a, b) => ctx.clearRect(a, 0, b - a + 1, H);
+
+    function moveDot() {
+      const x = (head - 1 + traceW) % traceW;
+      dot.style.transform = `translate(${x}px, ${yOf(chans[0], bufs[0][x]).toFixed(1)}px)`;
+    }
+
+    function fullDraw() {
+      ctx.clearRect(0, 0, W, H);
+      ring(head + GAP, traceW - GAP, stroke);
+      moveDot();
+    }
+
     function layout() {
       const f = fitCanvas(cv);
-      ctx = f.ctx; H = f.h;
+      ctx = f.ctx; W = f.w; H = f.h;
+      ctx.lineJoin = 'round';
       const mobile = f.w <= 640;
       const gutter = Math.max(16, (f.w - 1180) / 2);
-      const newTraceW = mobile ? f.w : Math.max(200, f.w - gutter - 170);
-      bands = mobile
+      const bands = mobile
         ? [[0.24, 0.62], [0.65, 0.78], [0.81, 0.91]]
         : [[0.08, 0.58], [0.61, 0.76], [0.79, 0.9]];
-      if (newTraceW !== traceW || f.w !== W) {
-        W = f.w; traceW = newTraceW;
+      chans.forEach((c, i) => {
+        c.top = bands[i][0] * H; c.bot = bands[i][1] * H; c.k = (c.bot - c.top) / (c.hi - c.lo);
+        c.el.style.transform = `translate(${gutter}px, ${c.top}px)`;
+      });
+      const newTraceW = mobile ? f.w : Math.max(200, f.w - gutter - 170);
+      if (newTraceW !== traceW) {
+        traceW = newTraceW;
         bufs = chans.map(() => new Float32Array(traceW));
         head = 0; live = false;
         for (let x = 0; x < traceW; x++) writeColumn(); // pre-fill so the screen is never empty
         live = true;
       }
-      W = f.w;
+      fullDraw();
     }
 
-    function draw() {
-      ctx.clearRect(0, 0, W, H);
-      const gutter = Math.max(16, (W - 1180) / 2);
-      ctx.font = `600 10px ${MONO}`;
-      chans.forEach((c, i) => {
-        const top = bands[i][0] * H, bot = bands[i][1] * H, span = bot - top;
-        const buf = bufs[i];
-        const path = new Path2D();
-        let pen = false;
-        for (let x = 0; x < traceW; x++) {
-          const ahead = (x - head + traceW) % traceW;
-          if (ahead < GAP) { pen = false; continue; }
-          const y = bot - ((buf[x] - c.lo) / (c.hi - c.lo)) * span;
-          pen ? path.lineTo(x, y) : path.moveTo(x, y);
-          pen = true;
-        }
-        ctx.lineJoin = 'round';
-        if (c.glow) {
-          ctx.strokeStyle = c.color; ctx.globalAlpha = 0.16; ctx.lineWidth = 6; ctx.stroke(path);
-        }
-        ctx.globalAlpha = 1; ctx.lineWidth = c.glow ? 1.8 : 1.3; ctx.strokeStyle = c.color; ctx.stroke(path);
-        ctx.fillStyle = c.color; ctx.globalAlpha = 0.85;
-        ctx.fillText(c.label, gutter, top + 10);
-        ctx.globalAlpha = 1;
-        if (c.glow) { // sweep head
-          const hx = (head - 1 + traceW) % traceW;
-          const hy = bot - ((buf[hx] - c.lo) / (c.hi - c.lo)) * span;
-          ctx.beginPath(); ctx.arc(hx, hy, 3, 0, Math.PI * 2);
-          ctx.shadowColor = c.color; ctx.shadowBlur = 14; ctx.fill(); ctx.shadowBlur = 0;
-        }
-      });
-    }
-
-    layout(); draw();
-    new ResizeObserver(() => { layout(); draw(); }).observe(host);
+    layout();
+    new ResizeObserver(layout).observe(host);
+    // incremental drawing relies on the canvas keeping its pixels; repaint fully whenever that may not hold
+    cv.addEventListener('contextrestored', fullDraw);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) fullDraw(); });
     if (reduceMotion) return;
 
     let spo2Timer = 0, eegState = '';
     visibleLoop(host, (dt) => {
       carry += dt * SPEED;
-      const n = Math.floor(carry); carry -= n;
-      for (let i = 0; i < n; i++) writeColumn();
-      draw();
+      const n = Math.floor(carry);
+      carry -= n;
+      if (n > 0) {
+        const prev = head;
+        for (let i = 0; i < n; i++) writeColumn();
+        if (head < prev) fullDraw(); // once per sweep: full repaint keeps the screen self-healing
+        else {
+          ring(prev - BACK, n + BACK, repaint);
+          ring(head, GAP, erase);
+          moveDot();
+        }
+      }
       spo2Timer -= dt;
       if (spo2Timer <= 0) { spo2Timer = 2 + Math.random() * 3; spo2El.textContent = Math.random() < 0.7 ? 98 : Math.random() < 0.5 ? 97 : 99; }
       const st = arousal > 0.35 ? 'b' : 'a';
@@ -222,12 +274,10 @@
   function initNav() {
     const bar = $('#progress-bar');
     const menuBtn = $('#menu-btn'), links = $('#nav-links');
-    const onScroll = () => {
+    onScrollFrame(() => {
       const max = document.documentElement.scrollHeight - innerHeight;
-      bar.style.width = (max > 0 ? (scrollY / max) * 100 : 0) + '%';
-    };
-    addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
+      bar.style.transform = `scaleX(${max > 0 ? scrollY / max : 0})`;
+    });
 
     menuBtn.addEventListener('click', () => {
       const open = menuBtn.getAttribute('aria-expanded') !== 'true';
@@ -292,11 +342,26 @@
       v.setAttribute('loading-anim-type', 'none');
       // on touch screens a 3D canvas would swallow the scroll gesture
       if (slot.dataset.decorative || !finePointer) v.style.pointerEvents = 'none';
+      // Spline keeps rendering at full frame rate even off screen — pause it whenever it isn't visible.
+      // (_spline is the viewer's runtime app; stop()/play() toggle its render loop.)
+      let loaded = false, inView = true;
+      const sync = () => {
+        const app = v._spline;
+        if (!loaded || !app) return;
+        if (inView) app.play?.(); else app.stop?.();
+      };
+      v.addEventListener('viewport-intersection', (e) => { inView = e.detail.intersection; sync(); });
+      v.addEventListener('load-complete', () => setTimeout(() => { loaded = true; sync(); }, 50));
       slot.appendChild(v);
     };
+    const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 200));
     const io = new IntersectionObserver((entries) => {
-      entries.forEach((e) => { if (e.isIntersecting) { io.unobserve(e.target); mount(e.target); } });
-    }, { rootMargin: '300px' });
+      entries.forEach((e) => {
+        if (!e.isIntersecting) return;
+        io.unobserve(e.target);
+        idle(() => mount(e.target), { timeout: 1500 });
+      });
+    }, { rootMargin: '200px' });
     $$('[data-spline]').forEach((s) => io.observe(s));
   }
 
@@ -355,7 +420,7 @@
 
   /* ═════════════════════════ TIMELINE ═════════════════════════ */
   function initTimeline() {
-    const list = $('#timeline-list'), fill = $('#timeline-fill'), wrap = $('#timeline');
+    const list = $('#timeline-list'), fill = $('#timeline-fill'), knob = $('#timeline-dot'), wrap = $('#timeline');
     list.innerHTML = D.experience.map((e) => `
       <li class="tl-item reveal" data-type="${e.type}">
         <span class="tl-date">${esc(e.from)} — ${esc(e.to)}</span>
@@ -369,19 +434,20 @@
       update();
     }));
 
+    const items = $$('.tl-item', list);
     const update = () => {
+      // all reads first, then all writes, so the browser never has to re-layout mid-frame
       const r = wrap.getBoundingClientRect();
+      if (r.bottom < -100 || r.top > innerHeight + 100) return;
       const mark = innerHeight * 0.62;
+      const railH = fill.parentElement.offsetHeight;
+      const lit = items.map((li) => { const b = li.getBoundingClientRect(); return b.height > 0 && b.top + b.height / 2 < mark; });
       const k = clamp((mark - r.top) / r.height, 0, 1);
-      fill.style.height = k * 100 + '%';
-      $$('.tl-item', list).forEach((li) => {
-        const b = li.getBoundingClientRect();
-        li.classList.toggle('lit', b.top + b.height / 2 < mark);
-      });
+      fill.style.transform = `scaleY(${k})`;
+      knob.style.transform = `translateY(${k * railH}px)`;
+      items.forEach((li, j) => li.classList.toggle('lit', lit[j]));
     };
-    addEventListener('scroll', update, { passive: true });
-    addEventListener('resize', update);
-    update();
+    onScrollFrame(update);
   }
 
   /* ═════════════════════════ PROJECTS ═════════════════════════ */
@@ -389,6 +455,8 @@
   const projects = (() => {
     const grid = $('#project-grid'), filters = $('#filters'), empty = $('#grid-empty');
     const state = { tag: 'All', tech: null };
+    let scrollEpoch = 0; // card rects are re-measured after the page scrolls
+    addEventListener('scroll', () => { scrollEpoch++; }, { passive: true });
 
     const mediaHTML = (m, cls = '') => (m.type === 'video'
       ? `<video class="${cls}" src="${m.src}#t=0.6" muted loop playsinline preload="metadata"></video>`
@@ -431,18 +499,29 @@
 
     function bindCard(card) {
       const video = $('video', card);
-      card.addEventListener('pointerenter', () => { if (video && finePointer) video.play().catch(() => {}); });
-      card.addEventListener('pointerleave', () => {
-        card.style.transform = '';
-        if (video) { video.pause(); }
+      const tilt = finePointer && !reduceMotion;
+      let rect = null, rectEpoch = -1, raf = 0, px = 0, py = 0;
+      card.addEventListener('pointerenter', () => {
+        if (video && finePointer) video.play().catch(() => {});
+        if (tilt) { rect = card.getBoundingClientRect(); rectEpoch = scrollEpoch; } // measured before any tilt
       });
-      if (finePointer && !reduceMotion) {
-        card.addEventListener('pointermove', (e) => {
-          const r = card.getBoundingClientRect();
-          const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+      card.addEventListener('pointerleave', () => {
+        cancelAnimationFrame(raf); raf = 0;
+        card.style.transform = '';
+        if (video) video.pause();
+      });
+      if (tilt) {
+        const apply = () => {
+          raf = 0;
+          const x = (px - rect.left) / rect.width, y = (py - rect.top) / rect.height;
           card.style.setProperty('--mx', x * 100 + '%');
           card.style.setProperty('--my', y * 100 + '%');
           card.style.transform = `perspective(900px) rotateX(${(0.5 - y) * 5}deg) rotateY(${(x - 0.5) * 7}deg) translateY(-4px)`;
+        };
+        card.addEventListener('pointermove', (e) => {
+          px = e.clientX; py = e.clientY;
+          if (rectEpoch !== scrollEpoch) { rect = card.getBoundingClientRect(); rectEpoch = scrollEpoch; }
+          if (!raf) raf = requestAnimationFrame(apply);
         });
       }
       card.addEventListener('click', () => modal.open(+card.dataset.i));
@@ -555,7 +634,7 @@
     // plant: C dT/dt = P_in − (k_loss + k_fan·fan)(T − T_amb); NTC & fan add first-order lags
     const P = { Ta: 22, C: 20, kLoss: 0.1, kFan: 0.9, Pbase: 8, Pspike: 8, tauS: 4, tauF: 2, speed: 10, dt: 0.02, win: 180, R25: 10000, B: 3950 };
     const HIST_DT = 0.25;
-    let s, hist, fanAngle = 0;
+    let s, hist, fanAngle = 0, size = null, plotT = 0;
 
     function reset() {
       s = { t: 0, T: P.Ta + 6, Ts: P.Ta + 6, fan: 0, I: 0, u: 0, spike: 0, ctrl: 0, code: 0, meas: P.Ta + 6, histT: 0 };
@@ -594,7 +673,7 @@
     }
 
     function draw() {
-      const { ctx, w, h } = fitCanvas(cv);
+      const { ctx, w, h } = size || (size = fitCanvas(cv)); // cached: measuring every frame forces a layout
       ctx.clearRect(0, 0, w, h);
       const L = 44, R = 12, T = 44, B = 26;
       const pw = w - L - R, ph = h - T - B;
@@ -673,15 +752,15 @@
     // warm up a few simulated seconds so the plot isn't empty on first view
     for (let k = 0; k < 40 / P.dt; k++) step(P.dt);
     updateReadouts(); draw();
-    new ResizeObserver(draw).observe(cv);
+    new ResizeObserver(() => { size = fitCanvas(cv); draw(); }).observe(cv);
 
     visibleLoop(panel, (dt) => {
       const steps = Math.round((dt * P.speed) / P.dt);
       for (let k = 0; k < steps; k++) step(P.dt);
       fanAngle = (fanAngle + s.fan * 900 * dt) % 360;
       ui.fan.style.transform = `rotate(${fanAngle}deg)`;
-      updateReadouts();
-      draw();
+      plotT += dt;
+      if (plotT >= 1 / 30) { plotT = 0; updateReadouts(); draw(); } // the plot moves slowly; 30 fps is plenty
     });
   }
 
@@ -693,7 +772,7 @@
     const uvEl = $('#eog-uv'), stEl = $('#eog-state'), thr = $('#eog-thr'), thrOut = $('#eog-thr-out');
     const FS = 100, WIN = 6, N = FS * WIN;
     const buf = new Float32Array(N);
-    let w = 0, target = 0, targetY = 0, gaze = 0, gazeY = 0, lastInput = -1e9, nextIdle = 0, clock = 0;
+    let size = null, plotT = 0, target = 0, targetY = 0, gaze = 0, gazeY = 0, lastInput = -1e9, nextIdle = 0, clock = 0;
     let blinkT = -1, drift = 0, closed = false, flex = 0, acc = 0, uv = 0;
 
     const syncThr = () => { thrOut.textContent = `±${thr.value} µV`; setRangeFill(thr); };
@@ -728,8 +807,7 @@
     }
 
     function draw() {
-      const { ctx, w: cw, h } = fitCanvas(cv);
-      w = cw;
+      const { ctx, w, h } = size || (size = fitCanvas(cv));
       ctx.clearRect(0, 0, w, h);
       const L = 52, R = 10, T = 30, B = 12, ph = h - T - B, pw = w - L - R;
       const Y = (v) => T + (1 - (v + 400) / 800) * ph;
@@ -772,7 +850,7 @@
     for (let k = 0; k < N; k++) { sample(1 / FS); buf[k] = uv; }
     acc = 0;
     render(0); draw();
-    new ResizeObserver(draw).observe(cv);
+    new ResizeObserver(() => { size = fitCanvas(cv); draw(); }).observe(cv);
 
     visibleLoop(panel, (dt) => {
       carry += dt * FS;
@@ -783,7 +861,8 @@
       }
       flex += ((closed ? 1 : 0) - flex) * Math.min(1, dt / 0.12);
       render(blink);
-      draw();
+      plotT += dt;
+      if (plotT >= 1 / 30) { plotT = 0; draw(); }
     });
   }
 

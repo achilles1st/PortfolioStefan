@@ -70,20 +70,19 @@ body::before {
   background-size: 48px 48px;
   mask-image: radial-gradient(ellipse at 50% 0%, #000 0%, transparent 75%);
   opacity: 0.55;
+  transform: translateZ(0); /* own layer: never repainted while scrolling */
 }
 
 /* ───────────────────────── nav ───────────────────────── */
 .progress { position: fixed; inset: 0 0 auto; height: 2px; z-index: 60; }
-.progress span { display: block; height: 100%; width: 0; background: var(--green); box-shadow: 0 0 10px var(--green-glow); }
+.progress span { display: block; height: 100%; width: 100%; transform: scaleX(0); transform-origin: left; background: var(--green); box-shadow: 0 0 10px var(--green-glow); }
 
 .nav {
   position: fixed; inset: 0 0 auto; z-index: 50;
   height: var(--nav-h);
   display: flex; align-items: center; gap: 24px;
   padding: 0 max(16px, calc((100% - var(--maxw)) / 2));
-  background: rgba(6, 8, 9, 0.72);
-  backdrop-filter: blur(14px) saturate(1.3);
-  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  background: rgba(6, 8, 9, 0.92);
   border-bottom: 1px solid var(--line);
 }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; margin-right: auto; }
@@ -92,12 +91,7 @@ body::before {
   border: 1.5px solid var(--green); color: var(--green);
   width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px;
 }
-.brand-pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 0 var(--green-glow); }
-.brand-pulse.beat { animation: beat 0.5s ease-out; }
-@keyframes beat {
-  0% { transform: scale(1.8); box-shadow: 0 0 0 0 var(--green-glow); }
-  100% { transform: scale(1); box-shadow: 0 0 0 10px transparent; }
-}
+.brand-pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green-glow); }
 .nav-links { display: flex; gap: 4px; list-style: none; margin: 0; padding: 0; }
 .nav-links a {
   font: 500 0.82rem var(--mono); text-transform: uppercase; letter-spacing: 0.06em;
@@ -225,8 +219,12 @@ body::before {
 .hud-eeg { color: var(--amber); }
 .hud-eeg .hud-val { font-size: clamp(1.4rem, 3vw, 2rem); }
 .heart { display: inline-block; }
-.heart.beat { animation: heart 0.35s ease-out; }
-@keyframes heart { 0% { transform: scale(1.6); } 100% { transform: scale(1); } }
+.monitor-label { position: absolute; left: 0; top: 0; font: 600 10px/1 var(--mono); opacity: 0.85; pointer-events: none; }
+.monitor-dot {
+  position: absolute; left: -3px; top: -3px; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--green); box-shadow: 0 0 12px 3px rgba(61, 245, 154, 0.55);
+  pointer-events: none; will-change: transform;
+}
 .monitor-hint {
   position: absolute; left: max(16px, calc((100% - var(--maxw)) / 2)); bottom: 10px; margin: 0;
   font: 500 0.72rem var(--mono); color: var(--dim); pointer-events: none;
@@ -315,9 +313,12 @@ body::before {
 /* timeline */
 .timeline { position: relative; padding-left: 36px; }
 .timeline-rail { position: absolute; left: 8px; top: 6px; bottom: 6px; width: 2px; background: var(--line-2); border-radius: 2px; }
-.timeline-rail span { position: absolute; inset: 0 0 auto; height: 0; background: var(--green); box-shadow: 0 0 12px var(--green-glow); border-radius: 2px; }
-.timeline-rail span::after {
-  content: ''; position: absolute; left: 50%; bottom: -6px; width: 12px; height: 12px; margin-left: -6px;
+.timeline-rail span {
+  position: absolute; inset: 0; transform: scaleY(0); transform-origin: top;
+  background: var(--green); box-shadow: 0 0 12px var(--green-glow); border-radius: 2px;
+}
+.timeline-rail i {
+  position: absolute; left: 50%; top: 0; width: 12px; height: 12px; margin: -6px 0 0 -6px;
   border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px rgba(61, 245, 154, 0.2), 0 0 20px var(--green);
 }
 #timeline-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
@@ -359,7 +360,6 @@ body::before {
   position: relative; display: flex; flex-direction: column;
   border-radius: var(--radius); overflow: hidden; cursor: pointer;
   background: var(--panel); border: 1px solid var(--line);
-  transform-style: preserve-3d;
   transition: border-color 0.25s, transform 0.25s ease-out, box-shadow 0.25s;
   text-align: left; padding: 0; color: inherit; font: inherit;
   animation: card-in 0.5s cubic-bezier(.2,.7,.2,1) both;
@@ -380,7 +380,7 @@ body::before {
 .card-num {
   position: absolute; left: 14px; top: 12px; z-index: 1;
   font: 700 0.8rem var(--mono); color: var(--green);
-  background: rgba(6, 8, 9, 0.75); padding: 4px 8px; border-radius: 6px; backdrop-filter: blur(6px);
+  background: rgba(6, 8, 9, 0.85); padding: 4px 8px; border-radius: 6px;
 }
 .card-badge {
   position: absolute; right: 12px; top: 12px; z-index: 1;
@@ -408,7 +408,7 @@ body::before {
   background: var(--bg-2); color: var(--text);
   overflow: hidden;
 }
-.modal::backdrop { background: rgba(2, 4, 4, 0.78); backdrop-filter: blur(6px); }
+.modal::backdrop { background: rgba(2, 4, 4, 0.86); }
 .modal[open] { animation: modal-in 0.3s cubic-bezier(.2,.7,.2,1); }
 @keyframes modal-in { from { opacity: 0; transform: translateY(20px) scale(0.98); } }
 .modal-inner { display: grid; grid-template-columns: 1.35fr 1fr; max-height: min(92vh, 900px); }
@@ -559,7 +559,7 @@ input[type='range']::-moz-range-thumb { width: 14px; height: 14px; border-radius
 .footer .mono { display: inline-flex; align-items: center; gap: 8px; font-size: 0.78rem; }
 
 /* terminal */
-.term { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 16px; background: rgba(2, 4, 4, 0.7); backdrop-filter: blur(6px); }
+.term { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 16px; background: rgba(2, 4, 4, 0.82); }
 .term[hidden] { display: none; }
 .term-win {
   width: min(760px, 100%); height: min(520px, 80vh);
