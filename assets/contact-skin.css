@@ -1,0 +1,91 @@
+/* Re-skins the Nicepage contact page to match the portfolio. The form markup and nicepage.js stay untouched. */
+:root {
+  --bg: #060809;
+  --panel: #0d1213;
+  --line: rgba(150, 255, 200, 0.08);
+  --line-2: rgba(150, 255, 200, 0.18);
+  --text: #e6eee9;
+  --muted: #8d9b94;
+  --dim: #5b6862;
+  --green: #3df59a;
+  --red: #ff5a6e;
+  --mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+  --sans: 'Inter', system-ui, sans-serif;
+  --display: 'Space Grotesk', var(--sans);
+  color-scheme: dark;
+}
+body.u-body {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+  font-family: var(--sans) !important;
+}
+body.u-body::before {
+  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at 50% 0%, #000 0%, transparent 75%);
+}
+
+.st-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  height: 64px; padding: 0 max(16px, calc((100% - 1140px) / 2));
+  border-bottom: 1px solid var(--line);
+}
+.st-brand {
+  font: 700 0.95rem var(--mono); color: var(--green) !important; text-decoration: none;
+  border: 1.5px solid var(--green); width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px;
+}
+.st-back {
+  font: 500 0.8rem var(--mono); text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--muted) !important; text-decoration: none; padding: 8px 12px; border-radius: 8px;
+}
+.st-back:hover { color: var(--green) !important; background: var(--panel); }
+
+.u-section-1 { background: transparent !important; }
+.u-section-1 .u-layout-wrap-1 { margin-top: clamp(30px, 8vw, 90px) !important; }
+.st-eyebrow {
+  font: 500 0.8rem var(--mono); text-transform: uppercase; letter-spacing: 0.14em; color: var(--muted);
+  margin: 0 0 14px !important;
+}
+.st-eyebrow span { color: var(--green); margin-right: 8px; }
+.u-section-1 .u-text-1 {
+  font: 600 clamp(2.4rem, 5vw, 3.6rem)/1.05 var(--display) !important;
+  letter-spacing: -0.03em; color: var(--text) !important;
+}
+.st-lead { color: var(--muted); margin: 18px 0 0 !important; max-width: 32ch; line-height: 1.6; }
+
+.u-section-1 .u-form-1 { height: auto !important; max-width: 100%; }
+.u-form .u-label {
+  font: 500 0.74rem var(--mono) !important; text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--muted) !important; margin-bottom: 8px;
+}
+.u-form .u-input {
+  background: var(--panel) !important; color: var(--text) !important;
+  border: 1px solid var(--line-2) !important; border-radius: 12px !important;
+  padding: 14px 16px !important; font: 400 1rem var(--sans) !important;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.u-form .u-input::placeholder { color: var(--dim) !important; }
+.u-form .u-input:focus { outline: none; border-color: var(--green) !important; box-shadow: 0 0 0 3px rgba(61, 245, 154, 0.15); }
+.u-form textarea.u-input { min-height: 150px; resize: vertical; }
+.u-form .u-form-group { margin-bottom: 8px; }
+.u-form .u-btn-submit.u-button-style.u-black {
+  background: var(--green) !important; color: #00170b !important;
+  font: 600 0.95rem var(--sans) !important; text-transform: none !important; letter-spacing: 0 !important;
+  padding: 14px 26px !important; border-radius: 12px !important;
+  transition: box-shadow 0.2s, transform 0.15s;
+}
+.u-form .u-btn-submit::after { content: '  →'; white-space: pre; }
+.u-form .u-btn-submit.u-button-style.u-black:hover { box-shadow: 0 8px 30px -8px rgba(61, 245, 154, 0.5); transform: translateY(-1px); }
+.u-form-send-message { border-radius: 12px !important; font-family: var(--mono) !important; font-size: 0.85rem !important; }
+.u-form-send-success { background: rgba(61, 245, 154, 0.12) !important; color: var(--green) !important; border: 1px solid rgba(61, 245, 154, 0.35); }
+.u-form-send-error { background: rgba(255, 90, 110, 0.12) !important; color: var(--red) !important; border: 1px solid rgba(255, 90, 110, 0.35); }
+
+.u-footer { background: transparent !important; border-top: 1px solid var(--line); }
+.u-footer .u-btn-1 { font: 500 0.8rem var(--mono) !important; color: var(--dim) !important; }
+.u-backlink { display: none !important; }
+
+@media (max-width: 767px) {
+  .u-section-1 .u-layout-cell-1, .u-section-1 .u-layout-cell-2 { min-height: 0 !important; }
+  .u-section-1 .u-form-1 { width: 100% !important; }
+}
