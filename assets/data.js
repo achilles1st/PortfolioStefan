@@ -8,9 +8,10 @@
 window.PORTFOLIO = {
   roles: [
     'Biomedical Engineer',
-    'Test Engineer @ Meon Medical Solutions',
+    'PhD Researcher · Integrated Sensors',
     'Hardware & PCB Design',
     'Biosignal Processing',
+    'Test Automation',
     'Machine Learning',
   ],
 
@@ -26,7 +27,8 @@ window.PORTFOLIO = {
   ],
 
   experience: [
-    { from: '2025', to: 'now', title: 'Test Engineer', org: 'Meon Medical Solutions', type: 'work' },
+    { from: '2026', to: 'now', title: 'PhD Researcher — Integrated Sensors', org: 'Institute of Measurement Technology, Leoben', type: 'work' },
+    { from: '2025', to: 'May 2026', title: 'Test Engineer', org: 'Meon Medical Solutions', type: 'work' },
     { from: '2022', to: '2025', title: 'Diplom-Ingenieur (Dipl.-Ing.)', org: 'Biomedical Engineering', type: 'edu' },
     { from: '2022', to: '2025', title: 'Test Engineer — Intern', org: 'Infineon', type: 'work' },
     { from: 'Oct 2022', to: 'Jan 2023', title: 'University Assistant', org: 'Technical University Graz', type: 'work' },

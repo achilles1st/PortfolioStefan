@@ -805,8 +805,9 @@
       }],
       whoami: ['who is Stefan?', () => {
         print(`${span('c-g', 'Stefan Tosic')} — biomedical engineer (Dipl.-Ing.)`);
-        print('Test Engineer @ Meon Medical Solutions · previously Infineon.');
-        print('Into biosignals, hardware design, test automation and ML.');
+        print('PhD researcher · integrated sensors · Institute of Measurement Technology, Leoben.');
+        print('Previously Test Engineer @ Meon Medical Solutions and Infineon.');
+        print('Into sensors, biosignals, hardware design, test automation and ML.');
       }],
       projects: ['list all projects', () => {
         D.projects.forEach((p, i) => print(`  ${span('c-g', pad2(i + 1))}  <button data-open="${i}">${esc(p.title)}</button>  ${span('c-d', p.tags.join(', '))}`));
