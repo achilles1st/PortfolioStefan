@@ -11,6 +11,12 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&display=swap">
   <link rel="stylesheet" href="assets/portfolio.css">
+  <script type="importmap">
+    { "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    } }
+  </script>
   <script src="assets/data.js" defer></script>
   <script src="assets/portfolio.js" defer></script>
 </head>
@@ -90,10 +96,11 @@
           </dl>
         </div>
         <div class="about-3d reveal">
-          <div class="spline-slot" data-spline="https://prod.spline.design/V9jHOrsqXjRkA7bu/scene.splinecode">
-            <span class="spline-loading">loading 3D scene…</span>
+          <div class="model-slot" id="robot-slot">
+            <canvas id="robot-canvas" role="img" aria-label="3D robot arm that follows your cursor"></canvas>
+            <span class="spline-loading">loading 3D model…</span>
           </div>
-          <p class="caption">Interactive 3D scene — drag to look around.</p>
+          <p class="caption"><span class="hint-fine">Move your cursor — the arm follows it. Click it to toggle the gripper.</span><span class="hint-touch">Tap the scene — the arm reaches for it and toggles the gripper.</span></p>
         </div>
       </div>
     </section>

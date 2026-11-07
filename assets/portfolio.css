@@ -268,7 +268,9 @@ body::before {
 .stats dt { font: 500 0.72rem var(--mono); text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
 .stats dd { margin: 4px 0 0; font: 700 2.4rem var(--mono); color: var(--green); font-variant-numeric: tabular-nums; }
 .about-3d { position: relative; }
-.spline-slot { position: relative; aspect-ratio: 1; border-radius: var(--radius); overflow: hidden; background: radial-gradient(circle at 50% 45%, #111a1a, var(--bg-2) 70%); border: 1px solid var(--line); }
+.spline-slot, .model-slot { position: relative; aspect-ratio: 1; border-radius: var(--radius); overflow: hidden; background: radial-gradient(circle at 50% 45%, #111a1a, var(--bg-2) 70%); border: 1px solid var(--line); }
+.model-slot canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: pointer; touch-action: pan-y; }
+.model-slot.is-ready .spline-loading { display: none; }
 .spline-slot spline-viewer { position: absolute; inset: 0; width: 100%; height: 100%; }
 .spline-loading { position: absolute; inset: 0; display: grid; place-items: center; font: 500 0.78rem var(--mono); color: var(--dim); }
 .caption { font: 500 0.75rem var(--mono); color: var(--dim); margin-top: 10px; }

@@ -2,6 +2,7 @@
   'use strict';
 
   const D = window.PORTFOLIO;
+  const ASSETS = new URL('.', document.currentScript.src).href; // for lazily imported modules
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -324,6 +325,20 @@
         requestAnimationFrame(run);
       });
     }, { once: true }));
+  }
+
+  /* ═════════════════════════ ROBOT ARM (three.js, lazy) ═════════════════════════ */
+  function initRobot() {
+    const slot = $('#robot-slot');
+    if (!slot) return;
+    const io = new IntersectionObserver(([e]) => {
+      if (!e.isIntersecting) return;
+      io.disconnect();
+      import(ASSETS + 'robot.js')
+        .then((m) => { m.mountRobot(slot, { reduceMotion }); slot.classList.add('is-ready'); })
+        .catch(() => { $('.spline-loading', slot).textContent = '3D preview unavailable'; });
+    }, { rootMargin: '300px' });
+    io.observe(slot);
   }
 
   /* ═════════════════════════ SPLINE (lazy) ═════════════════════════ */
@@ -1002,6 +1017,7 @@
   initReveal();
   initMonitor();
   initRoles();
+  initRobot();
   initSpline();
   initPI();
   initEOG();
